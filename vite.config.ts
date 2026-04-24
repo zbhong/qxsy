@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from "vite-tsconfig-paths";
 import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge';
+import path from 'path';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -27,4 +28,26 @@ export default defineConfig({
     }), 
     tsconfigPaths()
   ],
+  resolve: {
+    alias: {
+      'cesium': path.resolve(__dirname, './node_modules/cesium'),
+    },
+  },
+  define: {
+    'CESIUM_BASE_URL': JSON.stringify(''),
+  },
+  css: {
+    preprocessorOptions: {
+      css: {
+        url: {
+          filter: (url: string) => {
+            if (url.includes('cesium')) {
+              return false;
+            }
+            return true;
+          },
+        },
+      },
+    },
+  },
 })

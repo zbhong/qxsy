@@ -10,10 +10,50 @@ const ModelViewer: React.FC = () => {
 
     // 检查是否为tileset.json文件
     if (modelUrl.includes('tileset.json')) {
-      // 这里需要使用Cesium来处理3D Tiles
-      // 由于Cesium的集成比较复杂，这里仅作为示例
-      console.log('Loading 3D Tiles:', modelUrl);
-      // 实际项目中，你需要初始化Cesium Viewer并加载tileset
+      // 动态导入Cesium以避免构建错误
+      import('cesium').then((Cesium: any) => {
+        // 初始化Cesium Viewer
+        if (containerRef.current) {
+          const viewer = new Cesium.Viewer(containerRef.current, {
+            baseLayerPicker: false,
+            fullscreenButton: false,
+            homeButton: false,
+            infoBox: false,
+            navigationHelpButton: false,
+            scene3DOnly: true
+          });
+
+          // 加载3D Tiles
+          const tileset = new Cesium.Cesium3DTileset({
+            url: modelUrl
+          } as any);
+
+          viewer.scene.primitives.add(tileset);
+
+          // 定位到模型
+          if (tileset.readyPromise) {
+            tileset.readyPromise.then(() => {
+              const boundingSphere = tileset.boundingSphere;
+              if (boundingSphere) {
+                viewer.zoomTo(tileset, new Cesium.HeadingPitchRange(0, -0.5, boundingSphere.radius * 2));
+              }
+            });
+          } else if (tileset.readyEvent) {
+            // 兼容旧版本的Cesium
+            tileset.readyEvent.addEventListener(() => {
+              const boundingSphere = tileset.boundingSphere;
+              if (boundingSphere) {
+                viewer.zoomTo(tileset, new Cesium.HeadingPitchRange(0, -0.5, boundingSphere.radius * 2));
+              }
+            });
+          }
+
+          // 清理函数
+          return () => {
+            viewer.destroy();
+          };
+        }
+      });
     }
   }, [modelUrl]);
 
@@ -32,11 +72,7 @@ const ModelViewer: React.FC = () => {
         ref={containerRef}
         className="w-full h-[600px] bg-gray-100 rounded-lg overflow-hidden"
         id="cesiumContainer"
-      >
-        <div className="flex items-center justify-center h-full">
-          <p className="text-gray-500">加载3D Tiles中...</p>
-        </div>
-      </div>
+      ></div>
     );
   }
 
