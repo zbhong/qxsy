@@ -14,6 +14,7 @@ const UploadArea: React.FC = () => {
     setUploadProgress,
     setModelUrl,
     clearFiles,
+    setTilesetFiles,
   } = useModelStore();
 
   const handleFileSelect = (selectedFiles: FileList | null) => {
@@ -46,37 +47,34 @@ const UploadArea: React.FC = () => {
           const modelUrl = URL.createObjectURL(modelFile);
           setModelUrl(modelUrl);
         } else {
-          // 检查是否为3dtitle格式文件夹
-          const is3dtitleFolder = fileArray.some(file => 
-            file.webkitRelativePath.includes('3dtitle')
+          // 查找tileset.json文件（无论在哪个文件夹）
+          const tilesetFile = fileArray.find(file => 
+            file.name === 'tileset.json'
           );
           
-          if (is3dtitleFolder) {
-            // 查找3dtitle文件夹中的tileset.json文件
-            const tilesetFile = fileArray.find(file => 
-              file.webkitRelativePath.includes('3dtitle') && 
-              file.name === 'tileset.json'
+          if (tilesetFile) {
+            // 对于3D Tiles，我们需要保存所有相关文件
+            const tilesetFilesMap = new Map<string, File>();
+            fileArray.forEach(file => {
+              tilesetFilesMap.set(file.webkitRelativePath, file);
+            });
+            
+            setTilesetFiles(tilesetFilesMap);
+            
+            // 保存tileset.json的路径
+            const modelUrl = `local-tileset://${tilesetFile.webkitRelativePath}`;
+            setModelUrl(modelUrl);
+          } else {
+            // 查找glb或gltf格式的模型文件
+            const titleModelFile = fileArray.find(file => 
+              (file.name.endsWith('.glb') || file.name.endsWith('.gltf'))
             );
             
-            if (tilesetFile) {
-              // 对于tileset.json，我们需要特殊处理
-              // 这里创建一个包含所有相关文件的对象URL
-              // 注意：实际处理tileset.json需要更复杂的逻辑
-              const modelUrl = URL.createObjectURL(tilesetFile);
+            if (titleModelFile) {
+              const modelUrl = URL.createObjectURL(titleModelFile);
               setModelUrl(modelUrl);
             } else {
-              // 查找3dtitle文件夹中的模型文件（只支持glb和gltf格式）
-              const titleModelFile = fileArray.find(file => 
-                file.webkitRelativePath.includes('3dtitle') && 
-                (file.name.endsWith('.glb') || file.name.endsWith('.gltf'))
-              );
-              
-              if (titleModelFile) {
-                const modelUrl = URL.createObjectURL(titleModelFile);
-                setModelUrl(modelUrl);
-              } else {
-                alert('3dtitle文件夹中未找到可用的3D模型文件（支持.tileset.json、.glb和.gltf格式）');
-              }
+              alert('文件夹中未找到可用的3D模型文件（支持tileset.json、.glb和.gltf格式）');
             }
           }
         }
@@ -152,23 +150,19 @@ const UploadArea: React.FC = () => {
         <div className="mt-4">
           <h3 className="text-md font-medium text-gray-700 mb-2">已上传文件:</h3>
           <div className="space-y-2">
-            {files.map((file, index) => (
+            {files.slice(0, 10).map((file, index) => (
               <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                 <div className="flex items-center">
                   <File className="h-4 w-4 text-gray-500 mr-2" />
                   <span className="text-sm text-gray-700 truncate max-w-xs">{file.name}</span>
                 </div>
-                <button
-                  type="button"
-                  className="text-red-500 hover:text-red-700"
-                  onClick={() => {
-                    // 这里可以实现单个文件的删除逻辑
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </button>
               </div>
             ))}
+            {files.length > 10 && (
+              <div className="text-sm text-gray-500">
+                还有 {files.length - 10} 个文件...
+              </div>
+            )}
           </div>
           <button
             type="button"

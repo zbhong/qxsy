@@ -2,60 +2,134 @@ import React, { useEffect, useRef } from 'react';
 import { useModelStore } from '../store/useModelStore';
 
 const ModelViewer: React.FC = () => {
-  const { modelUrl } = useModelStore();
+  const { modelUrl, tilesetFiles } = useModelStore();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!modelUrl) return;
+    if (!modelUrl || !tilesetFiles) return;
 
-    // 检查是否为tileset.json文件
-    if (modelUrl.includes('tileset.json')) {
-      // 动态导入Cesium以避免构建错误
+    // 检查是否为本地tileset格式
+    if (modelUrl.startsWith('local-tileset://')) {
       import('cesium').then((Cesium: any) => {
+        if (!containerRef.current) return;
+        
+        // 配置Cesium
+        (window as any).CESIUM_BASE_URL = '';
+        
         // 初始化Cesium Viewer
-        if (containerRef.current) {
-          const viewer = new Cesium.Viewer(containerRef.current, {
-            baseLayerPicker: false,
-            fullscreenButton: false,
-            homeButton: false,
-            infoBox: false,
-            navigationHelpButton: false,
-            scene3DOnly: true
+        const viewer = new Cesium.Viewer(containerRef.current, {
+          baseLayerPicker: false,
+          fullscreenButton: false,
+          homeButton: false,
+          infoBox: false,
+          navigationHelpButton: false,
+          scene3DOnly: true,
+          timeline: false,
+          animation: false,
+          geocoder: false
+        });
+        
+        // 获取tileset.json的路径和文件
+        const tilesetPath = modelUrl.replace('local-tileset://', '');
+        const tilesetFile = tilesetFiles.get(tilesetPath);
+        
+        if (tilesetFile) {
+          // 创建一个包含所有文件URL的映射表
+          const filesUrlMap = new Map<string, string>();
+          tilesetFiles.forEach((file, path) => {
+            filesUrlMap.set(path, URL.createObjectURL(file));
           });
-
-          // 加载3D Tiles
-          const tileset = new Cesium.Cesium3DTileset({
-            url: modelUrl
-          } as any);
-
-          viewer.scene.primitives.add(tileset);
-
-          // 定位到模型
-          if (tileset.readyPromise) {
-            tileset.readyPromise.then(() => {
-              const boundingSphere = tileset.boundingSphere;
-              if (boundingSphere) {
-                viewer.zoomTo(tileset, new Cesium.HeadingPitchRange(0, -0.5, boundingSphere.radius * 2));
+          
+          // 读取和处理tileset.json
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+            let tilesetContent = event.target?.result as string;
+            
+            // 获取tileset.json所在的目录
+            const baseDir = tilesetPath.split('/').slice(0, -1).join('/');
+            
+            try {
+              const tilesetData = JSON.parse(tilesetContent);
+              
+              // 创建自定义的资源加载器
+              const loadResource = function(url: string) {
+                // 处理相对路径
+                let fullPath = url;
+                if (!url.startsWith('http') && !url.startsWith('blob')) {
+                  fullPath = baseDir ? baseDir + '/' + url : url;
+                }
+                
+                // 在我们的URL映射表中查找
+                const blobUrl = filesUrlMap.get(fullPath);
+                if (blobUrl) {
+                  return blobUrl;
+                }
+                
+                // 尝试直接匹配文件名
+                for (const [path, url] of filesUrlMap.entries()) {
+                  if (path.endsWith('/' + url.split('/').pop() || '')) {
+                    return url;
+                  }
+                }
+                
+                return url;
+              };
+              
+              // 我们需要直接使用blob URL加载tileset.json
+              const tilesetUrl = filesUrlMap.get(tilesetPath);
+              if (tilesetUrl) {
+                try {
+                  // 由于我们无法轻易地拦截Cesium的内部请求，我们将使用一个简单的方法
+                  // 创建一个自定义的3D Tileset实例
+                  const tileset = new Cesium.Cesium3DTileset({
+                    url: tilesetUrl,
+                    skipLevelOfDetail: true,
+                    baseScreenSpaceError: 1024,
+                    skipScreenSpaceErrorFactor: 16,
+                    skipLevels: 1,
+                    immediatelyLoadDesiredLevelOfDetail: false,
+                    loadSiblings: false,
+                    cullWithChildrenBounds: true,
+                    dynamicScreenSpaceError: true,
+                    dynamicScreenSpaceErrorDensity: 0.00278,
+                    dynamicScreenSpaceErrorFactor: 4.0,
+                    dynamicScreenSpaceErrorHeightFalloff: 0.25
+                  } as any);
+                  
+                  viewer.scene.primitives.add(tileset);
+                  
+                  // 监听瓦片加载事件来处理外部资源
+                  tileset.tileVisible.addEventListener(function(tile: any) {
+                    // 可以在这里添加额外的处理
+                  });
+                  
+                  // 等待模型加载并定位
+                  try {
+                    await tileset.readyPromise;
+                    const boundingSphere = tileset.boundingSphere;
+                    if (boundingSphere) {
+                      viewer.zoomTo(tileset, new Cesium.HeadingPitchRange(0, -0.5, boundingSphere.radius * 2));
+                    }
+                  } catch (error) {
+                    console.error('Tileset ready error:', error);
+                    alert('模型加载可能不完整，因为缺少一些瓦片文件。请确保上传了完整的3dtitle文件夹。');
+                  }
+                } catch (error) {
+                  console.error('Error loading tileset:', error);
+                  alert('加载模型时出错：' + (error as Error).message);
+                }
               }
-            });
-          } else if (tileset.readyEvent) {
-            // 兼容旧版本的Cesium
-            tileset.readyEvent.addEventListener(() => {
-              const boundingSphere = tileset.boundingSphere;
-              if (boundingSphere) {
-                viewer.zoomTo(tileset, new Cesium.HeadingPitchRange(0, -0.5, boundingSphere.radius * 2));
-              }
-            });
-          }
-
-          // 清理函数
-          return () => {
-            viewer.destroy();
+            } catch (error) {
+              console.error('Error parsing tileset.json:', error);
+              alert('无法解析tileset.json文件');
+            }
           };
+          
+          reader.readAsText(tilesetFile);
         }
       });
     }
-  }, [modelUrl]);
+  }, [modelUrl, tilesetFiles]);
 
   if (!modelUrl) {
     return (
@@ -65,8 +139,8 @@ const ModelViewer: React.FC = () => {
     );
   }
 
-  // 检查是否为tileset.json文件
-  if (modelUrl.includes('tileset.json')) {
+  // 检查是否为本地tileset格式
+  if (modelUrl.startsWith('local-tileset://')) {
     return (
       <div 
         ref={containerRef}
