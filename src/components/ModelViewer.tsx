@@ -4,6 +4,7 @@ import { OrbitControls, PerspectiveCamera, Environment, useGLTF } from '@react-t
 import { useModelStore } from '../store/useModelStore';
 
 const Model: React.FC<{ url: string }> = ({ url }) => {
+  // 暂时只支持GLTF/GLB格式，OBJ格式需要额外处理
   const { scene } = useGLTF(url);
   return <primitive object={scene} />;
 };

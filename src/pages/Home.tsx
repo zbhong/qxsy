@@ -21,8 +21,8 @@ export default function Home() {
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">使用说明</h2>
         <ul className="list-disc list-inside space-y-2 text-gray-700">
-          <li>点击「选择文件夹」按钮或拖拽文件夹到上传区域</li>
-          <li>等待文件上传完成，系统会自动查找并加载3D模型文件（.glb或.gltf格式）</li>
+          <li>点击「选择文件夹」按钮或拖拽3dtitle文件夹到上传区域</li>
+          <li>等待文件上传完成，系统会自动查找并加载3D模型文件（支持.glb、.gltf和.obj格式）</li>
           <li>在3D查看区域中，您可以：</li>
           <ul className="list-circle list-inside ml-6 space-y-1">
             <li>鼠标拖拽：旋转模型</li>

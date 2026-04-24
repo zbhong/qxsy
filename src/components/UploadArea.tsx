@@ -45,6 +45,26 @@ const UploadArea: React.FC = () => {
         if (modelFile) {
           const modelUrl = URL.createObjectURL(modelFile);
           setModelUrl(modelUrl);
+        } else {
+          // 检查是否为3dtitle格式文件夹
+          const is3dtitleFolder = fileArray.some(file => 
+            file.webkitRelativePath.includes('3dtitle')
+          );
+          
+          if (is3dtitleFolder) {
+            // 查找3dtitle文件夹中的模型文件（只支持glb和gltf格式）
+            const titleModelFile = fileArray.find(file => 
+              file.webkitRelativePath.includes('3dtitle') && 
+              (file.name.endsWith('.glb') || file.name.endsWith('.gltf'))
+            );
+            
+            if (titleModelFile) {
+              const modelUrl = URL.createObjectURL(titleModelFile);
+              setModelUrl(modelUrl);
+            } else {
+              alert('3dtitle文件夹中未找到可用的3D模型文件（支持.glb和.gltf格式）');
+            }
+          }
         }
       }
     }, 300);
