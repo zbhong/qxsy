@@ -1,16 +1,21 @@
-import React, { Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Environment, useGLTF } from '@react-three/drei';
+import React, { useEffect, useRef } from 'react';
 import { useModelStore } from '../store/useModelStore';
-
-const Model: React.FC<{ url: string }> = ({ url }) => {
-  // 暂时只支持GLTF/GLB格式，OBJ格式需要额外处理
-  const { scene } = useGLTF(url);
-  return <primitive object={scene} />;
-};
 
 const ModelViewer: React.FC = () => {
   const { modelUrl } = useModelStore();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!modelUrl) return;
+
+    // 检查是否为tileset.json文件
+    if (modelUrl.includes('tileset.json')) {
+      // 这里需要使用Cesium来处理3D Tiles
+      // 由于Cesium的集成比较复杂，这里仅作为示例
+      console.log('Loading 3D Tiles:', modelUrl);
+      // 实际项目中，你需要初始化Cesium Viewer并加载tileset
+    }
+  }, [modelUrl]);
 
   if (!modelUrl) {
     return (
@@ -20,27 +25,29 @@ const ModelViewer: React.FC = () => {
     );
   }
 
+  // 检查是否为tileset.json文件
+  if (modelUrl.includes('tileset.json')) {
+    return (
+      <div 
+        ref={containerRef}
+        className="w-full h-[600px] bg-gray-100 rounded-lg overflow-hidden"
+        id="cesiumContainer"
+      >
+        <div className="flex items-center justify-center h-full">
+          <p className="text-gray-500">加载3D Tiles中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 对于普通的GLTF/GLB模型，使用原来的Canvas
   return (
     <div className="w-full h-[600px] bg-gray-100 rounded-lg overflow-hidden">
-      <Canvas camera={{ position: [0, 0, 5] }}>
-        <PerspectiveCamera makeDefault fov={75} position={[0, 2, 5]} />
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={1} />
-        <Suspense fallback={
-          <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500">加载模型中...</p>
-          </div>
-        }>
-          <Model url={modelUrl} />
-          <Environment preset="studio" />
-        </Suspense>
-        <OrbitControls 
-          enableDamping 
-          dampingFactor={0.1} 
-          enableZoom={true}
-          enablePan={true}
-        />
-      </Canvas>
+      <iframe 
+        src={`/model-viewer.html?model=${encodeURIComponent(modelUrl)}`} 
+        className="w-full h-full border-0"
+        title="3D Model Viewer"
+      ></iframe>
     </div>
   );
 };

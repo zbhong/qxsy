@@ -52,17 +52,31 @@ const UploadArea: React.FC = () => {
           );
           
           if (is3dtitleFolder) {
-            // 查找3dtitle文件夹中的模型文件（只支持glb和gltf格式）
-            const titleModelFile = fileArray.find(file => 
+            // 查找3dtitle文件夹中的tileset.json文件
+            const tilesetFile = fileArray.find(file => 
               file.webkitRelativePath.includes('3dtitle') && 
-              (file.name.endsWith('.glb') || file.name.endsWith('.gltf'))
+              file.name === 'tileset.json'
             );
             
-            if (titleModelFile) {
-              const modelUrl = URL.createObjectURL(titleModelFile);
+            if (tilesetFile) {
+              // 对于tileset.json，我们需要特殊处理
+              // 这里创建一个包含所有相关文件的对象URL
+              // 注意：实际处理tileset.json需要更复杂的逻辑
+              const modelUrl = URL.createObjectURL(tilesetFile);
               setModelUrl(modelUrl);
             } else {
-              alert('3dtitle文件夹中未找到可用的3D模型文件（支持.glb和.gltf格式）');
+              // 查找3dtitle文件夹中的模型文件（只支持glb和gltf格式）
+              const titleModelFile = fileArray.find(file => 
+                file.webkitRelativePath.includes('3dtitle') && 
+                (file.name.endsWith('.glb') || file.name.endsWith('.gltf'))
+              );
+              
+              if (titleModelFile) {
+                const modelUrl = URL.createObjectURL(titleModelFile);
+                setModelUrl(modelUrl);
+              } else {
+                alert('3dtitle文件夹中未找到可用的3D模型文件（支持.tileset.json、.glb和.gltf格式）');
+              }
             }
           }
         }
